@@ -6,7 +6,8 @@ DB_PATH = "data/bot_db.sqlite3"
 
 async def init_db():
     async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("""
+        await db.execute(
+            """
             CREATE TABLE IF NOT EXISTS users (
                 user_id INTEGER PRIMARY KEY,
                 free_messages_used_today INTEGER DEFAULT 0,
@@ -14,12 +15,15 @@ async def init_db():
                 messages_bought INTEGER DEFAULT 0,
                 unlimited_until TEXT
             )
-        """)
-        await db.execute("""
+        """
+        )
+        await db.execute(
+            """
             CREATE TABLE IF NOT EXISTS admins (
                 user_id INTEGER PRIMARY KEY
             )
-        """)
+        """
+        )
 
         # Check if chat_history has old user_id column and rename it to chat_id
         async with db.execute("PRAGMA table_info(chat_history)") as cursor:
@@ -27,16 +31,20 @@ async def init_db():
             if columns:
                 column_names = [col[1] for col in columns]
                 if "user_id" in column_names and "chat_id" not in column_names:
-                    await db.execute("ALTER TABLE chat_history RENAME COLUMN user_id TO chat_id")
+                    await db.execute(
+                        "ALTER TABLE chat_history RENAME COLUMN user_id TO chat_id"
+                    )
 
-        await db.execute("""
+        await db.execute(
+            """
             CREATE TABLE IF NOT EXISTS chat_history (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 chat_id INTEGER,
                 role TEXT,
                 content TEXT
             )
-        """)
+        """
+        )
         await db.execute(
             "CREATE INDEX IF NOT EXISTS idx_chat_history_chat_id ON chat_history (chat_id)"
         )
