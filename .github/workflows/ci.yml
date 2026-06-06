@@ -25,7 +25,7 @@ jobs:
           pip install flake8 black
 
       - name: Check formatting with black
-        run: black --check bot/ ai_service/
+        run: black --check --diff bot/ ai_service/
 
       - name: Lint with flake8
         run: |
