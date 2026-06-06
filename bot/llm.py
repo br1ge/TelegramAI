@@ -35,7 +35,7 @@ async def analyze_images(images: list[bytes]) -> str:
     return "\n".join(descriptions)
 
 async def summarize_history(messages: list[dict]) -> str:
-    if config.USE_GEMINI and config.GEMINI_API_KEY:
+    if config.GEMINI_API_KEY:
         try:
             client = genai.Client(api_key=config.GEMINI_API_KEY)
 
@@ -49,7 +49,7 @@ async def summarize_history(messages: list[dict]) -> str:
             gemini_messages.append(prompt)
 
             response = await client.aio.models.generate_content(
-                model='gemini-1.5-flash',
+                model=config.GEMINI_MODEL,
                 contents=gemini_messages,
             )
             return response.text
@@ -79,7 +79,7 @@ async def generate_llm_response(messages: list[dict], images: list[bytes] = None
     """
     Calls the AI service and yields chunks of text as they arrive.
     """
-    if config.USE_GEMINI and config.GEMINI_API_KEY:
+    if config.GEMINI_API_KEY:
         client = genai.Client(api_key=config.GEMINI_API_KEY)
 
         gemini_messages = []
@@ -97,7 +97,7 @@ async def generate_llm_response(messages: list[dict], images: list[bytes] = None
 
         try:
             response = await client.aio.models.generate_content_stream(
-                model='gemini-1.5-flash',
+                model=config.GEMINI_MODEL,
                 contents=gemini_messages,
             )
             async for chunk in response:

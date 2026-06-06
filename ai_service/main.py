@@ -34,6 +34,10 @@ from vlm import vlm_instance
 # Load VLM on startup asynchronously in the background so it doesn't block
 @app.on_event("startup")
 async def startup_event():
+    import os
+    if os.getenv("GEMINI_API_KEY"):
+        print("GEMINI_API_KEY is present. Skipping VLM pre-loading.")
+        return
     # Only load in the background if we're actually running the server
     asyncio.create_task(asyncio.to_thread(vlm_instance.load))
 
@@ -73,6 +77,10 @@ async def chat_endpoint(request: ChatRequest):
 
 @app.on_event("startup")
 async def startup_event_llm():
+    import os
+    if os.getenv("GEMINI_API_KEY"):
+        print("GEMINI_API_KEY is present. Skipping LLM pre-loading.")
+        return
     # Pre-load LLM model
     asyncio.create_task(asyncio.to_thread(llm_orchestrator.load))
 

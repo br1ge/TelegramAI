@@ -258,7 +258,7 @@ async def _process_message(chat_id: int, user_id: int, text, images: list, messa
         return
 
     if images:
-        if config.USE_GEMINI:
+        if config.GEMINI_API_KEY:
             processing_msg = await send_msg("Thinking...")
             prompt = text if text else "Describe the images."
         else:
@@ -288,7 +288,7 @@ async def _process_message(chat_id: int, user_id: int, text, images: list, messa
         messages_to_summarize = None
         messages_for_response = messages
 
-    if config.USE_GEMINI:
+    if config.GEMINI_API_KEY:
         stream_generator = generate_llm_response(messages_for_response, images=images)
     else:
         stream_generator = generate_llm_response(messages_for_response)
