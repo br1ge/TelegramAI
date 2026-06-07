@@ -192,7 +192,7 @@ async def process_watch_ad_callback(callback: CallbackQuery, bot: Bot):
                         "⚠️ Failed to load advertisement. Please try again later."
                     )
                     return
-                data = await resp.json()
+                data = await resp.json(content_type=None)
     except Exception as e:
         logging.error(f"Error fetching ad from Adsgram: {e}")
         await callback.message.answer(
