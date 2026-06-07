@@ -149,7 +149,7 @@ async def test_group_filtering():
         await handle_message(message_from_bot)
         mock_process.assert_not_called()
 
-    # 4. Test group chat - Reply to bot -> should process
+    # 4. Test group chat - Reply to bot -> should NOT process anymore (to prevent loops)
     reply_to_user = User(
         id=12345, is_bot=True, first_name="Test Bot", username="test_bot"
     )
@@ -172,9 +172,7 @@ async def test_group_filtering():
     message_reply._bot = mock_bot
     with patch("handlers._process_message", new_callable=AsyncMock) as mock_process:
         await handle_message(message_reply)
-        mock_process.assert_called_once_with(
-            -1001, 999, "Reply text", [], message_reply
-        )
+        mock_process.assert_not_called()
 
 
 async def test_gemini_routing():

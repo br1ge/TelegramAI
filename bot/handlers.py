@@ -318,7 +318,7 @@ async def _handle_media_group(group_id: str):
     # Check if we should process in group chats
     message = group["message"]
     is_group = message.chat.type in ("group", "supergroup")
-    if is_group and not group.get("is_mentioned") and not group.get("is_reply_to_bot"):
+    if is_group and not group.get("is_mentioned"):
         return
 
     await _process_message(
@@ -459,7 +459,6 @@ async def handle_message(message: Message):
     is_group = message.chat.type in ("group", "supergroup")
 
     is_mentioned = False
-    is_reply_to_bot = False
 
     if is_group:
         bot_id, bot_username_raw = await _get_bot_info(message.bot)
@@ -473,10 +472,6 @@ async def handle_message(message: Message):
                 is_mentioned = True
                 text = re.sub(pattern, "", text)
                 text = re.sub(r"\s+", " ", text).strip()
-
-        if message.reply_to_message and message.reply_to_message.from_user:
-            if message.reply_to_message.from_user.id == bot_id:
-                is_reply_to_bot = True
 
     # Handle media group (album with multiple photos)
     if message.media_group_id and message.photo:
@@ -494,15 +489,12 @@ async def handle_message(message: Message):
                 "photos": [],
                 "message": message,
                 "is_mentioned": False,
-                "is_reply_to_bot": False,
             }
         _media_groups[group_id]["photos"].append(image_bytes)
         if text:
             _media_groups[group_id]["text"] = text
         if is_mentioned:
             _media_groups[group_id]["is_mentioned"] = True
-        if is_reply_to_bot:
-            _media_groups[group_id]["is_reply_to_bot"] = True
 
         # Restart timer on each new photo to wait for the rest
         if group_id in _media_group_tasks:
@@ -513,7 +505,7 @@ async def handle_message(message: Message):
         return
 
     # Single photo or text-only message
-    if is_group and not is_mentioned and not is_reply_to_bot:
+    if is_group and not is_mentioned:
         return
 
     image_bytes = None
