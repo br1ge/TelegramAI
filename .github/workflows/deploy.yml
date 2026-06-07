@@ -21,13 +21,16 @@ jobs:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
+          ADSGRAM_BLOCK_ID: ${{ vars.ADSGRAM_BLOCK_ID }}
+          BASE_URL: ${{ vars.BASE_URL }}
+          PORT: ${{ vars.PORT }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
           fingerprint: ${{ secrets.SSH_FINGERPRINT }}
-          envs: TELEGRAM_TOKEN,GEMINI_API_KEY,GEMINI_MODEL
+          envs: TELEGRAM_TOKEN,GEMINI_API_KEY,GEMINI_MODEL,ADSGRAM_BLOCK_ID,BASE_URL,PORT
           script: |
             cd ${{ secrets.WORK_DIR }}
             git fetch origin main
@@ -38,7 +41,18 @@ jobs:
             echo "GEMINI_API_KEY=\"$GEMINI_API_KEY\"" >> .env
             echo "GEMINI_MODEL=$GEMINI_MODEL" >> .env
             
+            if [ -n "$ADSGRAM_BLOCK_ID" ]; then
+              echo "ADSGRAM_BLOCK_ID=\"$ADSGRAM_BLOCK_ID\"" >> .env
+            fi
+            if [ -n "$BASE_URL" ]; then
+              echo "BASE_URL=\"$BASE_URL\"" >> .env
+            fi
+            if [ -n "$PORT" ]; then
+              echo "PORT=$PORT" >> .env
+            fi
+            
             # Restrict permissions for security
             chmod 600 .env
             
             make deploy
+
