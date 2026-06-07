@@ -265,9 +265,20 @@ async def test_quota_logic():
         await db.execute("DELETE FROM users WHERE user_id = ?", (test_user_id,))
         await db.commit()
 
-    # 1. Initially user should have no quota
+    # 1. Initially user should have 5 requests
+    user = await get_user(test_user_id)
+    assert (
+        user["ad_messages_remaining"] == 5
+    ), f"Expected 5 initial ad messages, got {user['ad_messages_remaining']}"
+
+    # Consume 5 times
+    for i in range(5):
+        has_quota = await check_and_consume_quota(test_user_id)
+        assert has_quota, f"User should have quota at iteration {i}"
+
+    # 6th attempt should fail
     has_quota = await check_and_consume_quota(test_user_id)
-    assert not has_quota, "User should not have quota initially"
+    assert not has_quota, "User should run out of quota after 5 consumes"
 
     # 2. Add reward quota (Adsgram)
     await add_reward_quota(test_user_id, 5)
@@ -294,8 +305,8 @@ async def test_quota_logic():
     assert success, "First daily free claim should succeed"
     user = await get_user(test_user_id)
     assert (
-        user["ad_messages_remaining"] == 5
-    ), f"Expected 5 ad messages after free claim, got {user['ad_messages_remaining']}"
+        user["ad_messages_remaining"] == 10
+    ), f"Expected 10 ad messages after free claim (5 initial + 5 daily), got {user['ad_messages_remaining']}"
 
     # Attempt to claim again on the same day - should fail
     success_retry = await claim_free_daily_quota(test_user_id)
@@ -317,8 +328,8 @@ async def test_quota_logic():
         user["messages_bought"] == 50
     ), f"Expected 50 bought messages, got {user['messages_bought']}"
     assert (
-        user["ad_messages_remaining"] == 3
-    ), f"Expected 3 ad messages, got {user['ad_messages_remaining']}"
+        user["ad_messages_remaining"] == 8
+    ), f"Expected 8 ad messages (5 initial + 3 added), got {user['ad_messages_remaining']}"
 
     # Consume quota - should decrement messages_bought
     has_quota = await check_and_consume_quota(test_user_id)
@@ -328,8 +339,8 @@ async def test_quota_logic():
         user["messages_bought"] == 49
     ), f"Expected 49 bought messages, got {user['messages_bought']}"
     assert (
-        user["ad_messages_remaining"] == 3
-    ), f"Expected 3 ad messages to be intact, got {user['ad_messages_remaining']}"
+        user["ad_messages_remaining"] == 8
+    ), f"Expected 8 ad messages to be intact, got {user['ad_messages_remaining']}"
 
     # 6. Test callback guard when Adsgram is active
     from unittest.mock import AsyncMock, MagicMock

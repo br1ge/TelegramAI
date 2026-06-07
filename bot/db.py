@@ -14,7 +14,7 @@ async def init_db():
                 last_free_date TEXT,
                 messages_bought INTEGER DEFAULT 0,
                 unlimited_until TEXT,
-                ad_messages_remaining INTEGER DEFAULT 0
+                ad_messages_remaining INTEGER DEFAULT 5
             )
         """
         )
@@ -26,7 +26,7 @@ async def init_db():
                 column_names = [col[1] for col in columns]
                 if "ad_messages_remaining" not in column_names:
                     await db.execute(
-                        "ALTER TABLE users ADD COLUMN ad_messages_remaining INTEGER DEFAULT 0"
+                        "ALTER TABLE users ADD COLUMN ad_messages_remaining INTEGER DEFAULT 5"
                     )
 
         await db.execute(
@@ -98,7 +98,7 @@ async def get_user(user_id: int) -> dict:
             row = await cursor.fetchone()
             if not row:
                 await db.execute(
-                    "INSERT OR IGNORE INTO users (user_id) VALUES (?)", (user_id,)
+                    "INSERT OR IGNORE INTO users (user_id, ad_messages_remaining) VALUES (?, 5)", (user_id,)
                 )
                 await db.commit()
                 async with db.execute(
