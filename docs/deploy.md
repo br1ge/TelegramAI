@@ -126,7 +126,6 @@ Add these under **Environment secrets**:
 | `WORK_DIR` | `/home/deployer/TelegramAI` | The exact path where the repo was cloned on the server. |
 | `TELEGRAM_TOKEN` | `123456789:ABCDefGhI...` | Your Telegram Bot token from @BotFather. |
 | `GEMINI_API_KEY` | `AIzaSy...` | Your Google AI Studio Gemini API Key. |
-| `HF_TOKEN` | `hf_...` | (Optional) Your Hugging Face User Access Token. |
 
 #### How to obtain the SSH Fingerprint:
 During the SSH handshake, GitHub Actions (which uses a Go-based SSH client) and your server will negotiate a host key format. Since the client may prefer ECDSA or RSA over Ed25519, providing only the Ed25519 fingerprint can cause a `host key fingerprint mismatch` error.
@@ -148,7 +147,6 @@ Add these under **Environment variables**:
 | Variable Name | Value Example | Description |
 |---|---|---|
 | `GEMINI_MODEL` | `gemini-3.1-flash-lite` | The name of the Gemini model to use. |
-| `USE_GPU` | `false` | Whether to enable GPU support (set to `true` or `false`). |
 
 ## Step 6: Test the Deployment
 

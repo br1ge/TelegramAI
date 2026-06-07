@@ -12,7 +12,6 @@ from aiogram.types import (
 from aiogram.filters import CommandStart, Command
 from aiogram.exceptions import TelegramBadRequest
 
-import config
 from db import (
     check_and_consume_quota,
     grant_package,
@@ -22,7 +21,7 @@ from db import (
     add_message,
     clear_history,
 )
-from llm import generate_llm_response, summarize_history, analyze_images
+from llm import generate_llm_response, summarize_history
 
 router = Router()
 
@@ -314,25 +313,8 @@ async def _process_message(
         return
 
     if images:
-        if config.GEMINI_API_KEY:
-            processing_msg = await send_msg("Thinking...")
-            prompt = text if text else "Describe the images."
-        else:
-            status = (
-                "Analyzing image..."
-                if len(images) == 1
-                else f"Analyzing {len(images)} images..."
-            )
-            processing_msg = await send_msg(status)
-            image_description = await analyze_images(images)
-            if image_description:
-                prompt = f"{text}\n{image_description}" if text else image_description
-            else:
-                prompt = text if text else "Describe the images."
-            try:
-                await processing_msg.edit_text("Thinking...")
-            except TelegramBadRequest:
-                pass
+        processing_msg = await send_msg("Thinking...")
+        prompt = text if text else "Describe the images."
     else:
         processing_msg = await send_msg("Thinking...")
 
@@ -348,12 +330,9 @@ async def _process_message(
         messages_to_summarize = None
         messages_for_response = messages
 
-    parse_mode = "HTML" if config.GEMINI_API_KEY else None
+    parse_mode = "HTML"
 
-    if config.GEMINI_API_KEY:
-        stream_generator = generate_llm_response(messages_for_response, images=images)
-    else:
-        stream_generator = generate_llm_response(messages_for_response)
+    stream_generator = generate_llm_response(messages_for_response, images=images)
 
     async def _run_generation():
         full_text = ""

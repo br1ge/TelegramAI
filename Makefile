@@ -1,65 +1,26 @@
-.PHONY: up down build rebuild logs train list-admins add-admin remove-admin deploy
+.PHONY: up down build rebuild logs list-admins add-admin remove-admin deploy
 
-## Run without recompiling (quickly)
+## Start the Bot service
 up:
-	@GEMINI_VAL=$$(grep -E '^GEMINI_API_KEY[[:space:]]*=' .env 2>/dev/null | cut -d= -f2- | tr -d '"'\'' '); \
-	if [ -n "$$GEMINI_VAL" ]; then \
-		echo "Starting only Bot service (using Gemini API)..."; \
-		docker compose up bot; \
-	else \
-		echo "Starting Bot and AI Service (using local models)..."; \
-		docker compose --profile local up; \
-	fi
+	docker compose up
 
-## Rebuild only the changed images and run
+## Rebuild and start the Bot service
 build:
-	@GEMINI_VAL=$$(grep -E '^GEMINI_API_KEY[[:space:]]*=' .env 2>/dev/null | cut -d= -f2- | tr -d '"'\'' '); \
-	if [ -n "$$GEMINI_VAL" ]; then \
-		echo "Building and starting only Bot service (using Gemini API)..."; \
-		DOCKER_BUILDKIT=1 docker compose up --build bot; \
-	else \
-		echo "Building and starting Bot and AI Service (using local models)..."; \
-		DOCKER_BUILDKIT=1 docker compose --profile local up --build; \
-	fi
+	DOCKER_BUILDKIT=1 docker compose up --build
 
 ## Complete rebuild from scratch (without cache)
 rebuild:
-	@GEMINI_VAL=$$(grep -E '^GEMINI_API_KEY[[:space:]]*=' .env 2>/dev/null | cut -d= -f2- | tr -d '"'\'' '); \
-	if [ -n "$$GEMINI_VAL" ]; then \
-		echo "Complete rebuild from scratch (using Gemini API)..."; \
-		DOCKER_BUILDKIT=1 docker compose build --no-cache bot && docker compose up bot; \
-	else \
-		echo "Complete rebuild from scratch (using local models)..."; \
-		DOCKER_BUILDKIT=1 docker compose --profile local build --no-cache && docker compose --profile local up; \
-	fi
+	DOCKER_BUILDKIT=1 docker compose build --no-cache && docker compose up
 
 ## Deploy in background (daemon mode)
 deploy:
-	@GEMINI_VAL=$$(grep -E '^GEMINI_API_KEY[[:space:]]*=' .env 2>/dev/null | cut -d= -f2- | tr -d '"'\'' '); \
-	if [ -n "$$GEMINI_VAL" ]; then \
-		echo "Deploying only Bot service in background (using Gemini API)..."; \
-		DOCKER_BUILDKIT=1 docker compose up --build -d bot && docker compose stop ai_service 2>/dev/null || true; \
-	else \
-		echo "Deploying Bot and AI Service in background (using local models)..."; \
-		DOCKER_BUILDKIT=1 docker compose --profile local up --build -d; \
-	fi
+	DOCKER_BUILDKIT=1 docker compose up --build -d
 
 down:
-	docker compose --profile local down
+	docker compose down
 
 logs:
-	docker compose --profile local logs -f
-
-## Run fine-tuning. Set USE_GPU=true in .env to enable GPU.
-train:
-	$(eval USE_GPU ?= false)
-	@if [ "$$(grep -s '^USE_GPU=true' .env)" ]; then \
-		echo "Training with GPU..."; \
-		DOCKER_BUILDKIT=1 docker compose -f docker-compose.yml -f docker-compose.gpu.yml --profile local run --rm train python train.py; \
-	else \
-		echo "Training with CPU..."; \
-		DOCKER_BUILDKIT=1 docker compose --profile local run --rm train python train.py; \
-	fi
+	docker compose logs -f
 
 list-admins:
 	docker compose exec -w /app/bot bot python3 admin_cli.py list
