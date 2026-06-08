@@ -156,6 +156,8 @@ class MediaService:
                 ):
                     try:
                         text_content = file_bytes.decode("utf-8")
+                        if not text.strip():
+                            text = "Process the attached files."
                         # Format text content and append to prompt without using Markdown code fences
                         file_prompt = (
                             f"\n\n=== START OF ATTACHED FILE: {filename} ===\n"

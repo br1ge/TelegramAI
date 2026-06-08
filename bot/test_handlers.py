@@ -430,6 +430,7 @@ async def test_media_service():
     mock_bot.download_file = AsyncMock(return_value=io.BytesIO(b"print('hello')"))
 
     text, parts = await MediaService.process_message_media(msg_doc_text)
+    assert "Process the attached files." in text
     assert "=== START OF ATTACHED FILE: test.py ===" in text
     assert "print('hello')" in text
     assert len(parts) == 0  # Should be empty because it was decoded as text

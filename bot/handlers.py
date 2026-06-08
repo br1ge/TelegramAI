@@ -431,21 +431,36 @@ async def _handle_media_group(group_id: str):
     await asyncio.sleep(0.5)
     group = _media_groups.pop(group_id, None)
     _media_group_tasks.pop(group_id, None)
-    if not group:
+    if not group or not group["messages"]:
         return
 
     # Check if we should process in group chats
-    message = group["message"]
+    message = group["messages"][0]
     is_group = message.chat.type in ("group", "supergroup")
     if is_group and not group.get("is_mentioned"):
         return
 
+    # Download and process the deferred media group items
+    media_parts = []
+    text_accumulated = group["text"] or ""
+
+    for msg in group["messages"]:
+        extracted_text, item_parts = await MediaService.process_message_media(
+            msg, override_text=""
+        )
+        media_parts.extend(item_parts)
+        if extracted_text:
+            if text_accumulated:
+                text_accumulated += "\n" + extracted_text
+            else:
+                text_accumulated = extracted_text
+
     await _process_message(
         group["chat_id"],
         group["user_id"],
-        group["text"],
-        group["media_parts"],
-        group["message"],
+        text_accumulated.strip(),
+        media_parts,
+        message,
     )
 
 
@@ -633,27 +648,22 @@ async def handle_message(message: Message):
     if message.media_group_id:
         group_id = message.media_group_id
 
-        extracted_text, item_parts = await MediaService.process_message_media(
-            message, override_text=text
-        )
-
         if group_id not in _media_groups:
             _media_groups[group_id] = {
                 "chat_id": chat_id,
                 "user_id": user_id,
                 "text": None,
-                "media_parts": [],
-                "message": message,
+                "messages": [],
                 "is_mentioned": False,
             }
 
-        _media_groups[group_id]["media_parts"].extend(item_parts)
-        if extracted_text:
+        _media_groups[group_id]["messages"].append(message)
+        if text:
             if _media_groups[group_id]["text"]:
-                if extracted_text not in _media_groups[group_id]["text"]:
-                    _media_groups[group_id]["text"] += "\n" + extracted_text
+                if text not in _media_groups[group_id]["text"]:
+                    _media_groups[group_id]["text"] += "\n" + text
             else:
-                _media_groups[group_id]["text"] = extracted_text
+                _media_groups[group_id]["text"] = text
 
         if is_mentioned:
             _media_groups[group_id]["is_mentioned"] = True
