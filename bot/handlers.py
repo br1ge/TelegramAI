@@ -24,6 +24,7 @@ from db import (
     clear_history,
 )
 from llm import generate_llm_response, summarize_history
+from media_service import MediaService
 
 router = Router()
 
@@ -44,7 +45,7 @@ async def _get_bot_info(bot):
     return _bot_id, _bot_username
 
 
-# Buffer for media group albums: media_group_id -> {user_id, text, photos, message}
+# Buffer for media group albums: media_group_id -> {user_id, text, media_parts, message}
 _media_groups: dict[str, dict] = {}
 _media_group_tasks: dict[str, asyncio.Task] = {}
 
@@ -428,7 +429,7 @@ async def process_successful_payment(message: Message):
 
 
 async def _handle_media_group(group_id: str):
-    """Wait briefly for all album photos to arrive, then process as one request."""
+    """Wait briefly for all album items to arrive, then process as one request."""
     await asyncio.sleep(0.5)
     group = _media_groups.pop(group_id, None)
     _media_group_tasks.pop(group_id, None)
@@ -445,15 +446,15 @@ async def _handle_media_group(group_id: str):
         group["chat_id"],
         group["user_id"],
         group["text"],
-        group["photos"],
+        group["media_parts"],
         group["message"],
     )
 
 
 async def _process_message(
-    chat_id: int, user_id: int, text, images: list, message: Message
+    chat_id: int, user_id: int, text, media_parts: list, message: Message
 ):
-    if not text and not images:
+    if not text and not media_parts:
         return
 
     prompt = text or ""
@@ -493,9 +494,17 @@ async def _process_message(
             )
         return
 
-    if images:
+    if media_parts:
         processing_msg = await send_msg("Thinking...")
-        prompt = text if text else "Describe the images."
+        if not prompt:
+            has_voice = any(p.get("mime_type", "").startswith("audio/") for p in media_parts)
+            has_image = any(p.get("mime_type", "").startswith("image/") for p in media_parts)
+            if has_voice:
+                prompt = "Listen to the voice message and reply to it."
+            elif has_image:
+                prompt = "Describe the images."
+            else:
+                prompt = "Process the attached files."
     else:
         processing_msg = await send_msg("Thinking...")
 
@@ -513,7 +522,7 @@ async def _process_message(
 
     parse_mode = "HTML"
 
-    stream_generator = generate_llm_response(messages_for_response, images=images)
+    stream_generator = generate_llm_response(messages_for_response, media_parts=media_parts)
 
     async def _run_generation():
         full_text = ""
@@ -614,30 +623,34 @@ async def handle_message(message: Message):
                 text = re.sub(pattern, "", text)
                 text = re.sub(r"\s+", " ", text).strip()
 
-    # Handle media group (album with multiple photos)
-    if message.media_group_id and message.photo:
+    # Handle media group (album with multiple photos or documents)
+    if message.media_group_id:
         group_id = message.media_group_id
-        photo = message.photo[-1]
-        file_info = await message.bot.get_file(photo.file_id)
-        file = await message.bot.download_file(file_info.file_path)
-        image_bytes = file.read()
+        
+        extracted_text, item_parts = await MediaService.process_message_media(message, override_text=text)
 
         if group_id not in _media_groups:
             _media_groups[group_id] = {
                 "chat_id": chat_id,
                 "user_id": user_id,
                 "text": None,
-                "photos": [],
+                "media_parts": [],
                 "message": message,
                 "is_mentioned": False,
             }
-        _media_groups[group_id]["photos"].append(image_bytes)
-        if text:
-            _media_groups[group_id]["text"] = text
+        
+        _media_groups[group_id]["media_parts"].extend(item_parts)
+        if extracted_text:
+            if _media_groups[group_id]["text"]:
+                if extracted_text not in _media_groups[group_id]["text"]:
+                    _media_groups[group_id]["text"] += "\n" + extracted_text
+            else:
+                _media_groups[group_id]["text"] = extracted_text
+
         if is_mentioned:
             _media_groups[group_id]["is_mentioned"] = True
 
-        # Restart timer on each new photo to wait for the rest
+        # Restart timer on each new item to wait for the rest
         if group_id in _media_group_tasks:
             _media_group_tasks[group_id].cancel()
         _media_group_tasks[group_id] = asyncio.create_task(
@@ -645,20 +658,15 @@ async def handle_message(message: Message):
         )
         return
 
-    # Single photo or text-only message
+    # Single message (with text, photo, voice, document, etc.)
     if is_group and not is_mentioned:
         return
 
-    image_bytes = None
-    if message.photo:
-        photo = message.photo[-1]
-        file_info = await message.bot.get_file(photo.file_id)
-        file = await message.bot.download_file(file_info.file_path)
-        image_bytes = file.read()
+    extracted_text, media_parts = await MediaService.process_message_media(message, override_text=text)
 
-    if not text and not image_bytes:
+    if not extracted_text and not media_parts:
         return
 
     await _process_message(
-        chat_id, user_id, text, [image_bytes] if image_bytes else [], message
+        chat_id, user_id, extracted_text, media_parts, message
     )

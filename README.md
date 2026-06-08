@@ -9,7 +9,7 @@ A customizable, containerized AI-powered Telegram Agent starter kit. This reposi
 ## Features
 
 - **Gemini API Integration**: Native integration with Google Gemini models using the modern `google-genai` Python SDK.
-- **Multimodal capabilities**: Easily handles both text prompts and images (single or media group albums) using Gemini's native vision capabilities.
+- **Multimodal capabilities**: Extensible processing of text, images (single or albums), voice messages, and general document files (PDFs, code files, audio, and video) via a dedicated media service.
 - **Customizable Subscription & Quotas**: Built-in quota manager (Adsgram video ads for unlimited free requests, fallback to 5 free requests once per day, and Telegram Stars packages) using SQLite.
 - **Admin System**: Separate administration management commands allowing admin users to bypass quotas.
 - **Group Chat Support**: Participate in group chats. The bot only responds when mentioned (via `@username`). Chat history is grouped by `chat_id` for context isolation, while quotas are tracked individually by `user_id`.
@@ -29,10 +29,15 @@ A customizable, containerized AI-powered Telegram Agent starter kit. This reposi
 ├── bot/
 │   ├── bot.py              # Bot entrypoint & runner
 │   ├── handlers.py         # Commands, pricing, callbacks, checkout & album processing
+│   ├── media_service.py    # Extensible media processing service (voice, files, images)
 │   ├── db.py               # Database manager (aiosqlite)
 │   ├── llm.py              # Async HTTP client wrappers for Gemini API
 │   ├── admin_cli.py        # Command-line interface for admin users
 │   └── test_handlers.py    # Local test suite
+├── docs/
+│   ├── adsgram.md          # Adsgram Integration Guide
+│   ├── deploy.md           # Secure Deployment Guide
+│   └── media_service.md    # Extensible Media Service Guide
 └── data/                   # Unified folder for persistent database
     └── bot_db.sqlite3      # SQLite database (created automatically on startup)
 ```

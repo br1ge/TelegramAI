@@ -68,7 +68,7 @@ async def summarize_history(messages: list[dict]) -> str:
         return ""
 
 
-async def generate_llm_response(messages: list[dict], images: list[bytes] = None):
+async def generate_llm_response(messages: list[dict], media_parts: list[dict] = None):
     """
     Calls the Gemini API and yields chunks of text as they arrive.
     """
@@ -83,12 +83,19 @@ async def generate_llm_response(messages: list[dict], images: list[bytes] = None
             role = "model" if msg["role"] == "assistant" else "user"
             parts = [types.Part.from_text(text=msg["content"])]
 
-            # Attach images to the very last user message
-            if images and i == len(messages) - 1 and role == "user":
-                for img in images:
-                    parts.append(
-                        types.Part.from_bytes(data=img, mime_type="image/jpeg")
-                    )
+            # Attach media parts to the very last user message
+            if media_parts and i == len(messages) - 1 and role == "user":
+                for part in media_parts:
+                    if isinstance(part, dict):
+                        if "data" in part and "mime_type" in part:
+                            parts.append(
+                                types.Part.from_bytes(
+                                    data=part["data"],
+                                    mime_type=part["mime_type"]
+                                )
+                            )
+                    else:
+                        parts.append(part)
 
             gemini_messages.append({"role": role, "parts": parts})
 

@@ -61,6 +61,9 @@ async def run_tests():
     # 7. Test quota logic
     await test_quota_logic()
 
+    # 8. Test Media Service
+    await test_media_service()
+
     print("All tests passed!")
 
 
@@ -363,6 +366,78 @@ async def test_quota_logic():
         )
     finally:
         config.IS_ADSGRAM_ACTIVE = old_adsgram_active
+
+
+async def test_media_service():
+    from media_service import MediaService
+    from aiogram.types import Message, Voice, PhotoSize, Document, Chat, User
+    from unittest.mock import AsyncMock, MagicMock
+    import io
+    import datetime
+
+    # 1. Test is_text_file
+    assert MediaService.is_text_file("main.py", "text/x-python") is True
+    assert MediaService.is_text_file("data.json", "application/json") is True
+    assert MediaService.is_text_file("image.png", "image/png") is False
+    assert MediaService.is_text_file("doc.pdf", "application/pdf") is False
+
+    # Mock Message
+    mock_bot = AsyncMock()
+
+    # 2. Test Voice message
+    voice = Voice(file_id="voice_123", duration=5, file_unique_id="v1", mime_type="audio/ogg")
+    msg_voice = Message(
+        message_id=5,
+        date=datetime.datetime.now(),
+        chat=Chat(id=123, type="private"),
+        from_user=User(id=999, is_bot=False, first_name="User"),
+        voice=voice
+    )
+    msg_voice._bot = mock_bot
+    mock_file_info = MagicMock(file_path="voice_path")
+    mock_bot.get_file = AsyncMock(return_value=mock_file_info)
+    mock_bot.download_file = AsyncMock(return_value=io.BytesIO(b"oggdata"))
+
+    text, parts = await MediaService.process_message_media(msg_voice)
+    assert text == ""
+    assert len(parts) == 1
+    assert parts[0]["mime_type"] == "audio/ogg"
+    assert parts[0]["data"] == b"oggdata"
+
+    # 3. Test Text File Document
+    doc_text = Document(file_id="doc_123", file_unique_id="d1", file_name="test.py", mime_type="text/x-python")
+    msg_doc_text = Message(
+        message_id=6,
+        date=datetime.datetime.now(),
+        chat=Chat(id=123, type="private"),
+        from_user=User(id=999, is_bot=False, first_name="User"),
+        document=doc_text
+    )
+    msg_doc_text._bot = mock_bot
+    mock_bot.download_file = AsyncMock(return_value=io.BytesIO(b"print('hello')"))
+    
+    text, parts = await MediaService.process_message_media(msg_doc_text)
+    assert "[Attached File: test.py]" in text
+    assert "print('hello')" in text
+    assert len(parts) == 0  # Should be empty because it was decoded as text
+
+    # 4. Test PDF Document (Binary)
+    doc_pdf = Document(file_id="doc_456", file_unique_id="d2", file_name="paper.pdf", mime_type="application/pdf")
+    msg_doc_pdf = Message(
+        message_id=7,
+        date=datetime.datetime.now(),
+        chat=Chat(id=123, type="private"),
+        from_user=User(id=999, is_bot=False, first_name="User"),
+        document=doc_pdf
+    )
+    msg_doc_pdf._bot = mock_bot
+    mock_bot.download_file = AsyncMock(return_value=io.BytesIO(b"pdfdata"))
+    
+    text, parts = await MediaService.process_message_media(msg_doc_pdf)
+    assert text == ""
+    assert len(parts) == 1
+    assert parts[0]["mime_type"] == "application/pdf"
+    assert parts[0]["data"] == b"pdfdata"
 
 
 if __name__ == "__main__":
